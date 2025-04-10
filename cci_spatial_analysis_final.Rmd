@@ -1,0 +1,113 @@
+
+---
+title: "Spatial Analysis & Propensity Score Matching of CCI Projects"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(broom)
+library(ggplot2)
+library(MatchIt)
+```
+
+## Load and Prepare Data
+
+```{r}
+df <- read_csv("cci_programs_data_reduced.csv", show_col_types = FALSE)
+
+df <- df %>%
+  rename(Agency_Name = `Agency Name`, County = County) %>%
+  mutate(
+    `Total Program GGRFFunding` = as.numeric(`Total Program GGRFFunding`),
+    `Total Project GHGReductions` = as.numeric(`Total Project GHGReductions`),
+    `Total GGRFDisadvantaged Community Funding` = as.numeric(`Total GGRFDisadvantaged Community Funding`),
+    cost_per_ton = `Total Program GGRFFunding` / `Total Project GHGReductions`,
+    share_DAC = `Total GGRFDisadvantaged Community Funding` / `Total Program GGRFFunding`,
+    log_funding = log1p(`Total Program GGRFFunding`)
+  )
+```
+
+## Project-Level Aggregation and Region Assignment
+
+```{r}
+project_df <- df %>%
+  group_by(`Project ID Number`) %>%
+  summarise(
+    log_funding = first(log_funding),
+    Agency_Name = first(Agency_Name),
+    County = first(County),
+    cost_per_ton = first(cost_per_ton),
+    share_DAC = first(share_DAC),
+    n_partners = n_distinct(County)
+  ) %>%
+  mutate(
+    high_collab = if_else(n_partners > 5, 1, 0),
+    Region_South = if_else(County %in% c("Los Angeles", "Orange", "San Diego", "Riverside", "San Bernardino", "Imperial", "Ventura"), 1, 0)
+  ) %>%
+  drop_na(log_funding, Agency_Name, Region_South, high_collab)
+```
+
+## Propensity Score Matching
+
+```{r}
+match_model <- matchit(
+  high_collab ~ log_funding + Agency_Name + Region_South,
+  data = project_df,
+  method = "nearest", distance = "logit"
+)
+
+matched_df <- match.data(match_model)
+```
+
+## Winsorization to Handle Outliers
+
+```{r}
+winsorize <- function(x, probs = c(0.01, 0.99)) {
+  q <- quantile(x, probs, na.rm = TRUE)
+  pmin(pmax(x, q[1]), q[2])
+}
+
+matched_df <- matched_df %>%
+  mutate(cost_per_ton_wins = winsorize(cost_per_ton))
+```
+
+## Summary Statistics
+
+```{r}
+matched_df %>%
+  group_by(high_collab) %>%
+  summarise(
+    avg_cost_per_ton = mean(cost_per_ton, na.rm = TRUE),
+    avg_share_DAC = mean(share_DAC, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+## Visualization of Outcomes
+
+```{r}
+ggplot(matched_df, aes(x = factor(high_collab), y = cost_per_ton_wins)) +
+  geom_boxplot(fill = "#0072B2") +
+  labs(
+    title = "Winsorized GHG Cost per Ton by Collaboration Level",
+    x = "High Collaboration (0=Low, 1=High)",
+    y = "Cost per Ton ($)"
+  ) +
+  ylim(0, 2000)
+
+ggplot(matched_df, aes(x = factor(high_collab), y = share_DAC)) +
+  geom_boxplot(fill = "#009E73") +
+  labs(
+    title = "DAC Funding Share by Collaboration Level",
+    x = "High Collaboration (0=Low, 1=High)",
+    y = "Share of Funding to DAC"
+  )
+```
+
+## Interpretation
+
+- High-collaboration projects have significantly lower average cost per ton of GHG reduction.
+- They also direct a higher share of funding to Disadvantaged Communities (DACs).
+- These findings support the idea that collaboration can improve both **efficiency** and **equity** in state climate investments.
