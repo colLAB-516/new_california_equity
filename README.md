@@ -46,8 +46,8 @@ pip install -r requirements.txt
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/NEW_CALIFORNIA_EQUITY.git
-   cd NEW_CALIFORNIA_EQUITY
+   git clone https://github.com/dadams-AU/new_california_equity.git
+   cd new_california_equity
    ```
 
 2. Open and run notebooks in this suggested sequence:
