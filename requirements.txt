@@ -1,0 +1,6 @@
+IPython
+matplotlib
+numpy
+pandas
+statsmodels
+tabulate
