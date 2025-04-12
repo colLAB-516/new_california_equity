@@ -60,7 +60,7 @@ pip install -r requirements.txt
 
 ## Citation
 
-> Adams, D. (2025). *Administrative Resilience Under Pressure: Environmental Governance and Institutional Adaptation*. Manuscript in progress.
+> Arthur, P., Adams, D. P., Fisk, J. M., Jarvis, M. G., & Simon, C. A. (2025). Pioneering Policy: Exploring the Role of Multi-Agency Collaboration in California’s Climate Investment Program, 2015–2024. Manuscript in preparation.
 
 ## Contact
 
